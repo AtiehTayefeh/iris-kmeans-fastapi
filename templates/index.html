@@ -1,0 +1,173 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Iris K-Means Clustering with FastAPI</title>
+    <!-- Include Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+
+
+
+        body {
+            font-family: "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f9fafb;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            gap: 20px;
+        }
+        .plot {
+            width: 48%;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .result-box {
+            margin-top: 40px;
+            padding: 20px;
+            background: #ffffff;
+            border-right: 5px solid #3b82f6;
+            border-radius: 8px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            direction: rtl;
+            text-align: right;
+        }
+        .result-box ul {
+            padding-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>نمایش خوشه‌بندی K-Means روی دیتاست Iris</h1>
+
+    <div class="container">
+        <div id="kmeans_plot" class="plot"></div>
+        <div id="species_plot" class="plot"></div>
+    </div>
+
+    <div id="result" class="result-box"></div>
+
+
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/iris_clusters')
+                .then(response => response.json())
+                .then(data => {
+                    plotKMeans(data.cluster_data, data.cluster_centers);
+                    plotActualSpecies(data.cluster_data);
+                    showResult(data.cluster_data);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        });
+
+        function plotKMeans(clusterData, centersData) {
+            const trace1 = {
+                x: clusterData.map(item => item.sepal_length),
+                y: clusterData.map(item => item.sepal_width),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 8,
+                    color: clusterData.map(item => item.cluster),
+                    colorscale: 'Viridis',
+                    opacity: 0.7
+                },
+                text: clusterData.map(item => `خوشه: ${item.cluster}<br>گونه: ${item.species_name}`),
+                hoverinfo: 'text',
+                name: 'نمونه‌ها'
+            };
+
+            const traceCenters = {
+                x: centersData.map(center => center[0]),
+                y: centersData.map(center => center[1]),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 14,
+                    color: 'red',
+                    symbol: 'x',
+                    line: { width: 2 }
+                },
+                name: 'مراکز خوشه'
+            };
+
+            const layoutKMeans = {
+                title: 'نتایج خوشه‌بندی K-Means',
+                xaxis: { title: 'Sepal Length (cm)' },
+                yaxis: { title: 'Sepal Width (cm)' },
+                legend: { x: 0.8, y: 1.1 }
+            };
+
+            Plotly.newPlot('kmeans_plot', [trace1, traceCenters], layoutKMeans);
+        }
+
+
+
+        function plotActualSpecies(clusterData) {
+            const speciesNames = [...new Set(clusterData.map(item => item.species_name))];
+            const traces = speciesNames.map(name => {
+                const filteredData = clusterData.filter(item => item.species_name === name);
+                return {
+                    x: filteredData.map(item => item.sepal_length),
+                    y: filteredData.map(item => item.sepal_width),
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: name,
+                    marker: { size: 8, opacity: 0.7 },
+                    text: filteredData.map(item => `گونه: ${item.species_name}`),
+                    hoverinfo: 'text'
+                };
+            });
+
+            const layoutSpecies = {
+                title: 'گونه‌های واقعی Iris',
+                xaxis: { title: 'Sepal Length (cm)' },
+                yaxis: { title: 'Sepal Width (cm)' },
+                legend: { x: 0.8, y: 1.1 }
+            };
+
+            Plotly.newPlot('species_plot', traces, layoutSpecies);
+        }
+
+
+
+        function showResult(clusterData) {
+            const speciesCount = {};
+            clusterData.forEach(item => {
+                speciesCount[item.species_name] = (speciesCount[item.species_name] || 0) + 1;
+            });
+
+            const resultText = `
+                <h2> نتیجه</h2>
+                <p>
+                    الگوریتم <strong>K-Means</strong> داده‌های گل زنبق را به سه خوشه تقسیم کرده است.
+                    گونه <em>Iris setosa</em> به وضوح از بقیه جدا می‌شود،
+                    در حالی که <em>versicolor</em> و <em>virginica</em> کمی هم‌پوشانی دارند.
+                </p>
+                <p><strong>تعداد نمونه‌ها بر اساس گونه:</strong></p>
+                <ul>
+                    ${Object.entries(speciesCount).map(([name, count]) => `<li>${name}: ${count}</li>`).join('')}
+                </ul>
+            `;
+            document.getElementById('result').innerHTML = resultText;
+        }
+    </script>
+</body>
+</html>
