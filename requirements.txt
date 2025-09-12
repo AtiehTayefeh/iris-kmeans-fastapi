@@ -3,6 +3,6 @@ uvicorn
 gunicorn
 scikit-learn
 pandas
+numpy
 jinja2
 plotly
-numpy
